@@ -4,13 +4,14 @@ const client = new BedrockRuntimeClient({ region: process.env.AWS_REGION });
 
 const SYSTEM_PROMPT = `Eres un asistente que convierte una frase en español sobre un deseo de compra familiar en un objeto JSON estricto.
 Devuelve SOLO un objeto JSON, sin texto adicional, con esta forma exacta:
-{"articulo": string, "precio": number, "prioridad": "alta"|"media"|"baja", "estimado": boolean}
+{"articulo": string, "precio": number, "prioridad": "alta"|"media"|"baja", "estimado": boolean, "mensaje": string|null}
 
 Reglas:
 - "articulo" es una descripcion corta y clara del producto.
 - "precio" es un numero en la moneda local mencionada (sin simbolos), si no se menciona un precio, infiere uno razonable para ese tipo de producto y marca "estimado": true.
 - "prioridad" infierela del tono del texto (urgencia, palabras como "necesito" = alta, "seria bueno" = baja); si no hay pistas, usa "media".
-- "estimado" es true si tuviste que inventar el precio o la prioridad, false si vinieron explicitos en el texto.`;
+- "estimado" es true si tuviste que inventar el precio o la prioridad, false si vinieron explicitos en el texto.
+- "mensaje": mas o menos 1 de cada 3 veces, agrega un comentario corto, calido y natural en español sobre el articulo (ej. "buena eleccion, les va a quedar increible en la sala"). El resto de las veces, deja "mensaje" en null. Nunca lo repitas identico dos veces seguidas.`;
 
 async function parseDeseoFromText(texto) {
   const command = new ConverseCommand({
@@ -44,6 +45,7 @@ async function parseDeseoFromText(texto) {
     parsed.prioridad = 'media';
   }
   parsed.estimado = Boolean(parsed.estimado);
+  parsed.mensaje = typeof parsed.mensaje === 'string' && parsed.mensaje.trim() ? parsed.mensaje.trim() : null;
 
   return parsed;
 }

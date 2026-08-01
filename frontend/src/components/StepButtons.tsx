@@ -7,7 +7,7 @@ export default function StepButtons({ onStep, step = 50000 }: { onStep: (delta: 
         whileTap={{ scale: 0.85 }}
         type="button"
         onClick={() => onStep(-step)}
-        className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white/70"
+        className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-base font-bold text-white/70"
         aria-label={`restar ${step}`}
       >
         -
@@ -16,7 +16,7 @@ export default function StepButtons({ onStep, step = 50000 }: { onStep: (delta: 
         whileTap={{ scale: 0.85 }}
         type="button"
         onClick={() => onStep(step)}
-        className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white/70"
+        className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-base font-bold text-white/70"
         aria-label={`sumar ${step}`}
       >
         +

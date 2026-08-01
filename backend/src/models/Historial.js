@@ -5,7 +5,15 @@ const historialSchema = new mongoose.Schema(
     deseo_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Deseo', default: null },
     accion: {
       type: String,
-      enum: ['creado', 'editado', 'prioridad_cambiada', 'reordenado', 'comprado', 'eliminado'],
+      enum: [
+        'creado',
+        'editado',
+        'prioridad_cambiada',
+        'reordenado',
+        'comprado',
+        'eliminado',
+        'ahorro_automatico',
+      ],
       required: true,
     },
     detalle: { type: String, default: '' },

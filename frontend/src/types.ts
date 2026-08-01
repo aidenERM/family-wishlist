@@ -21,6 +21,12 @@ export interface Deseo {
   imagenes?: string[];
   comprado_en?: string | null;
   pagos?: Record<string, number>;
+  razon?: string;
+  fecha_objetivo?: string | null;
+  oculto_para?: string | null;
+  revisado_en?: string;
+  foto_comprado?: string | null;
+  mensaje?: string | null;
 }
 
 export interface Config {
@@ -31,7 +37,14 @@ export interface Config {
 export interface HistorialEntry {
   _id: string;
   deseo_id: string | null;
-  accion: 'creado' | 'editado' | 'prioridad_cambiada' | 'reordenado' | 'comprado' | 'eliminado';
+  accion:
+    | 'creado'
+    | 'editado'
+    | 'prioridad_cambiada'
+    | 'reordenado'
+    | 'comprado'
+    | 'eliminado'
+    | 'ahorro_automatico';
   detalle: string;
   fecha: string;
 }
@@ -49,4 +62,17 @@ export interface ConsultaResponse {
   monto: number;
   respuesta: string;
   plan: ConsultaPlanItem[];
+}
+
+export interface DuplicadoError {
+  duplicado: true;
+  existente: Deseo;
+  propuesto?: { articulo: string; precio: number; prioridad: Prioridad; estimado: boolean };
+  error: string;
+}
+
+export interface Snapshot {
+  _id: string;
+  fecha: string;
+  total: number;
 }

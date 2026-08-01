@@ -20,4 +20,26 @@ function buildPlan(deseosPendientes, totalDisponible, ahorroMensual) {
   return plan;
 }
 
-module.exports = { buildPlan };
+function computeStatuses(deseosPendientes, totalDisponible, ahorroMensual) {
+  const ordered = [...deseosPendientes].sort((a, b) => a.orden - b.orden);
+  let acumulado = 0;
+  const statuses = [];
+
+  for (const deseo of ordered) {
+    acumulado += deseo.precio;
+    const faltante = acumulado - totalDisponible;
+    let status;
+    if (faltante <= 0) {
+      status = 'verde';
+    } else if (ahorroMensual > 0 && faltante / ahorroMensual < 1) {
+      status = 'naranja';
+    } else {
+      status = 'rojo';
+    }
+    statuses.push({ _id: deseo._id.toString(), status });
+  }
+
+  return statuses;
+}
+
+module.exports = { buildPlan, computeStatuses };

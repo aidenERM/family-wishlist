@@ -1,6 +1,7 @@
 const express = require('express');
 const Persona = require('../models/Persona');
 const requireFamilyKey = require('../middleware/auth');
+const { recordSnapshot } = require('../services/snapshot');
 
 const router = express.Router();
 
@@ -21,6 +22,8 @@ router.put('/:persona', requireFamilyKey, async (req, res) => {
     { plata_actual, updated_at: new Date() },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
+
+  await recordSnapshot();
 
   res.json(persona);
 });

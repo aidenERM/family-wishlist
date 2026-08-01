@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import * as api from './api';
-import type { Config, Deseo, Persona, Prioridad } from './types';
+import type { Config, Deseo, Persona, Prioridad, Snapshot } from './types';
 import { computePlan, buildMonthlyPlan } from './lib/planning';
+import { getIdentity } from './lib/identity';
+import { celebrar } from './lib/confetti';
+import type { ManualAddFields } from './components/ManualAddForm';
 import Header from './components/Header';
 import AiInput from './components/AiInput';
 import ManualAddForm from './components/ManualAddForm';
@@ -14,30 +17,42 @@ import PlanMensualTable from './components/PlanMensualTable';
 import ConsultaBox from './components/ConsultaBox';
 import UndoToast from './components/UndoToast';
 import InstallBanner from './components/InstallBanner';
+import MilestoneBanner from './components/MilestoneBanner';
+import ProgresoPanel from './components/ProgresoPanel';
+import QueSiSlider from './components/QueSiSlider';
+import SettingsPanel from './components/SettingsPanel';
+import CompartirButton from './components/CompartirButton';
+import SkeletonCards from './components/SkeletonCards';
 
 export default function App() {
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [total, setTotal] = useState(0);
   const [deseos, setDeseos] = useState<Deseo[]>([]);
   const [config, setConfig] = useState<Config | null>(null);
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalDeseo, setModalDeseo] = useState<Deseo | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Deseo | null>(null);
+  const [ahorroPreview, setAhorroPreview] = useState<number | null>(null);
   const deleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const identity = useMemo(() => getIdentity(), []);
+  const prevStatuses = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     async function load() {
       try {
-        const [familia, deseosData, configData] = await Promise.all([
+        const [familia, deseosData, configData, snapshotsData] = await Promise.all([
           api.getFamilia(),
           api.getDeseos(),
           api.getConfig(),
+          api.getSnapshots().catch(() => []),
         ]);
         setPersonas(familia.personas);
         setTotal(familia.total);
         setDeseos(deseosData);
         setConfig(configData);
+        setSnapshots(snapshotsData);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'No se pudo cargar la informacion');
       } finally {
@@ -47,15 +62,34 @@ export default function App() {
     load();
   }, []);
 
+  const deseosVisibles = useMemo(
+    () => deseos.filter((d) => !identity || d.oculto_para !== identity),
+    [deseos, identity]
+  );
+
+  const ahorroEfectivo = ahorroPreview ?? config?.ahorro_mensual ?? 0;
+
   const plan = useMemo(
-    () => computePlan(deseos, total, config?.ahorro_mensual ?? 0),
-    [deseos, total, config]
+    () => computePlan(deseosVisibles, total, ahorroEfectivo),
+    [deseosVisibles, total, ahorroEfectivo]
   );
 
   const monthlyPlan = useMemo(
-    () => buildMonthlyPlan(deseos, total, config?.ahorro_mensual ?? 0, 12),
-    [deseos, total, config]
+    () => buildMonthlyPlan(deseosVisibles, total, ahorroEfectivo, 12),
+    [deseosVisibles, total, ahorroEfectivo]
   );
+
+  useEffect(() => {
+    let huboNuevoVerde = false;
+    plan.forEach((p, id) => {
+      const anterior = prevStatuses.current.get(id);
+      if (anterior && anterior !== 'verde' && p.status === 'verde') {
+        huboNuevoVerde = true;
+      }
+      prevStatuses.current.set(id, p.status);
+    });
+    if (huboNuevoVerde) celebrar();
+  }, [plan]);
 
   async function handleSavePersona(nombre: string, plataActual: number) {
     const updated = await api.updatePersona(nombre, plataActual);
@@ -63,13 +97,14 @@ export default function App() {
     setTotal((prev) => prev - (personas.find((p) => p.nombre === nombre)?.plata_actual ?? 0) + plataActual);
   }
 
-  async function handleAddAi(texto: string) {
-    const deseo = await api.addDeseoAi(texto);
+  async function handleAddAi(texto: string, forzar?: boolean) {
+    const deseo = await api.addDeseoAi(texto, forzar);
     setDeseos((prev) => [...prev, deseo]);
+    return { mensaje: deseo.mensaje ?? null };
   }
 
-  async function handleAddManual(articulo: string, precio: number, prioridad: Prioridad) {
-    const deseo = await api.addDeseoManual(articulo, precio, prioridad);
+  async function handleAddManual(fields: ManualAddFields) {
+    const deseo = await api.addDeseoManual(fields);
     setDeseos((prev) => [...prev, deseo]);
   }
 
@@ -84,13 +119,34 @@ export default function App() {
     setModalDeseo((prev) => (prev && prev._id === id ? updated : prev));
   }
 
-  async function handleComprar(id: string, pagos: Record<string, number>) {
-    const updated = await api.comprarDeseo(id, pagos);
+  async function handleComprar(id: string, pagos: Record<string, number>, foto_comprado?: string) {
+    const updated = await api.comprarDeseo(id, pagos, foto_comprado);
     setDeseos((prev) => prev.map((d) => (d._id === id ? updated : d)));
     setPersonas((prev) =>
       prev.map((p) => (pagos[p.nombre] ? { ...p, plata_actual: p.plata_actual - pagos[p.nombre] } : p))
     );
     setTotal((prev) => prev - Object.values(pagos).reduce((s, v) => s + v, 0));
+    api.getSnapshots().then(setSnapshots).catch(() => {});
+  }
+
+  async function handleConfirmarPrecio(id: string) {
+    const updated = await api.revisarPrecio(id);
+    setDeseos((prev) => prev.map((d) => (d._id === id ? updated : d)));
+    setModalDeseo((prev) => (prev && prev._id === id ? updated : prev));
+  }
+
+  async function handleChangeOcultoPara(id: string, nombre: string | null) {
+    const updated = await api.updateDeseo(id, { oculto_para: nombre });
+    setDeseos((prev) => prev.map((d) => (d._id === id ? updated : d)));
+    setModalDeseo((prev) => (prev && prev._id === id ? updated : prev));
+  }
+
+  async function handleAddFoto(id: string, dataUri: string) {
+    const existing = deseos.find((d) => d._id === id);
+    const imagenes = [...(existing?.imagenes ?? []), dataUri];
+    const updated = await api.updateDeseo(id, { imagenes });
+    setDeseos((prev) => prev.map((d) => (d._id === id ? updated : d)));
+    setModalDeseo((prev) => (prev && prev._id === id ? updated : prev));
   }
 
   function handleDeleteRequest(id: string) {
@@ -122,11 +178,7 @@ export default function App() {
   }
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-white/60">
-        Cargando...
-      </div>
-    );
+    return <SkeletonCards />;
   }
 
   return (
@@ -142,15 +194,24 @@ export default function App() {
           <div className="glass-card border-sable-rojo/40 p-3 text-sm text-red-300">{error}</div>
         )}
 
+        <MilestoneBanner total={total} />
+
         <AiInput onSubmit={handleAddAi} />
         <ConsultaBox />
         <ManualAddForm onSubmit={handleAddManual} />
         {config && <ConfigPanel ahorroMensual={config.ahorro_mensual} onSave={handleSaveAhorro} />}
 
+        <ProgresoPanel deseos={deseosVisibles} snapshots={snapshots} ahorroMensual={config?.ahorro_mensual ?? 0} />
+
+        <QueSiSlider ahorroMensual={config?.ahorro_mensual ?? 0} onPreview={setAhorroPreview} />
+
         <CalendarioTimeline rows={monthlyPlan} />
         <PlanMensualTable rows={monthlyPlan} />
 
-        <DeseoList deseos={deseos} plan={plan} onOpen={setModalDeseo} onReorder={handleReorder} />
+        <DeseoList deseos={deseosVisibles} plan={plan} onOpen={setModalDeseo} onReorder={handleReorder} />
+
+        <CompartirButton total={total} pendientes={deseosVisibles.filter((d) => d.estado === 'pendiente')} />
+        <SettingsPanel personas={personas} />
       </main>
 
       <AnimatePresence>
@@ -162,6 +223,9 @@ export default function App() {
             onChangePrioridad={handleChangePrioridad}
             onComprar={handleComprar}
             onDelete={handleDeleteRequest}
+            onConfirmarPrecio={handleConfirmarPrecio}
+            onChangeOcultoPara={handleChangeOcultoPara}
+            onAddFoto={handleAddFoto}
           />
         )}
       </AnimatePresence>

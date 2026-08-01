@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Deseo, Persona, Prioridad } from '../types';
-import { formatMoney } from '../lib/format';
+import { formatMoney, diasHasta, mesesDesde } from '../lib/format';
 import { imageUrl } from '../lib/images';
+import { resizeImageFile } from '../lib/photo';
+import { celebrar } from '../lib/confetti';
 import PrioridadBadge from './PrioridadBadge';
 
 const PRIORIDADES: Prioridad[] = ['alta', 'media', 'baja'];
@@ -14,25 +16,39 @@ export default function DeseoModal({
   onChangePrioridad,
   onComprar,
   onDelete,
+  onConfirmarPrecio,
+  onChangeOcultoPara,
+  onAddFoto,
 }: {
   deseo: Deseo;
   personas: Persona[];
   onClose: () => void;
   onChangePrioridad: (id: string, prioridad: Prioridad) => Promise<void>;
-  onComprar: (id: string, pagos: Record<string, number>) => Promise<void>;
+  onComprar: (id: string, pagos: Record<string, number>, foto_comprado?: string) => Promise<void>;
   onDelete: (id: string) => void;
-  }) {
+  onConfirmarPrecio: (id: string) => Promise<void>;
+  onChangeOcultoPara: (id: string, nombre: string | null) => Promise<void>;
+  onAddFoto: (id: string, dataUri: string) => Promise<void>;
+}) {
   const imagenes = deseo.imagenes ?? [];
   const [activeImg, setActiveImg] = useState(0);
   const [comprando, setComprando] = useState(false);
   const [pagos, setPagos] = useState<Record<string, string>>(() =>
     Object.fromEntries(personas.map((p) => [p.nombre, '']))
   );
+  const [fotoCompra, setFotoCompra] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const fotoCompraRef = useRef<HTMLInputElement>(null);
+  const fotoWishRef = useRef<HTMLInputElement>(null);
 
   const totalPagos = Object.values(pagos).reduce((sum, v) => sum + (Number(v) || 0), 0);
+  const mainImage: string | undefined =
+    deseo.estado === 'comprado' && deseo.foto_comprado ? deseo.foto_comprado : imagenes[activeImg] || deseo.foto_comprado || undefined;
+  const dias = deseo.fecha_objetivo ? diasHasta(new Date(deseo.fecha_objetivo)) : null;
+  const mesesRevisado = deseo.revisado_en ? mesesDesde(new Date(deseo.revisado_en)) : 0;
 
   async function submitComprar(e: React.FormEvent) {
     e.preventDefault();
@@ -48,12 +64,35 @@ export default function DeseoModal({
           .map(([k, v]) => [k, Number(v) || 0])
           .filter(([, v]) => (v as number) > 0)
       ) as Record<string, number>;
-      await onComprar(deseo._id, parsed);
+      await onComprar(deseo._id, parsed, fotoCompra || undefined);
+      celebrar();
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error inesperado');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleFotoCompra(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setFotoCompra(await resizeImageFile(file));
+    } catch {
+      // ignora si falla
+    }
+  }
+
+  async function handleFotoWish(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSubiendoFoto(true);
+    try {
+      const resized = await resizeImageFile(file);
+      await onAddFoto(deseo._id, resized);
+    } finally {
+      setSubiendoFoto(false);
     }
   }
 
@@ -74,15 +113,19 @@ export default function DeseoModal({
       >
         <div className="flex items-start justify-between gap-2">
           <h2 className="text-lg font-semibold">{deseo.articulo}</h2>
-          <button onClick={onClose} className="text-white/50" aria-label="cerrar">
+          <button
+            onClick={onClose}
+            className="flex h-10 w-10 shrink-0 items-center justify-center text-lg text-white/50"
+            aria-label="cerrar"
+          >
             ✕
           </button>
         </div>
 
-        {imagenes.length > 0 && (
+        {mainImage && (
           <div className="mt-3">
             <img
-              src={imageUrl(imagenes[activeImg])}
+              src={imageUrl(mainImage)}
               alt={deseo.articulo}
               className="h-48 w-full rounded-2xl object-cover"
             />
@@ -104,17 +147,50 @@ export default function DeseoModal({
           </div>
         )}
 
-        {deseo.descripcion && <p className="mt-3 text-sm text-white/70">{deseo.descripcion}</p>}
+        {deseo.estado === 'pendiente' && (
+          <div className="mt-2">
+            <input ref={fotoWishRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFotoWish} />
+            <button
+              type="button"
+              onClick={() => fotoWishRef.current?.click()}
+              disabled={subiendoFoto}
+              className="text-xs text-white/40"
+            >
+              {subiendoFoto ? 'Subiendo...' : '📷 Agregar tu propia foto'}
+            </button>
+          </div>
+        )}
 
-        <div className="mt-3 flex items-center gap-2 text-sm">
+        {deseo.descripcion && <p className="mt-3 text-sm text-white/70">{deseo.descripcion}</p>}
+        {deseo.razon && (
+          <p className="mt-2 rounded-xl bg-white/5 p-3 text-sm italic text-white/70">"{deseo.razon}"</p>
+        )}
+
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
           <span className="font-semibold">{formatMoney(deseo.precio)}</span>
           <PrioridadBadge prioridad={deseo.prioridad} />
           {deseo.estado === 'comprado' && <span className="text-white/40">comprado</span>}
+          {dias !== null && deseo.estado === 'pendiente' && (
+            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/60">
+              {dias > 0 ? `faltan ${dias} dias` : dias === 0 ? 'es hoy' : 'fecha pasada'}
+            </span>
+          )}
         </div>
 
         {deseo.estado === 'comprado' && deseo.pagos && (
           <div className="mt-2 text-xs text-white/50">
             Pagado por: {Object.entries(deseo.pagos).map(([n, m]) => `${n} ${formatMoney(m)}`).join(', ')}
+          </div>
+        )}
+
+        {deseo.estado === 'pendiente' && (
+          <div className="mt-3 flex items-center justify-between text-xs text-white/40">
+            <span>revisado hace {mesesRevisado} {mesesRevisado === 1 ? 'mes' : 'meses'}</span>
+            {mesesRevisado >= 1 && (
+              <button onClick={() => onConfirmarPrecio(deseo._id)} className="text-sable-verde">
+                confirmar que el precio sigue igual
+              </button>
+            )}
           </div>
         )}
 
@@ -127,7 +203,7 @@ export default function DeseoModal({
                   key={p}
                   disabled={p === deseo.prioridad}
                   onClick={() => onChangePrioridad(deseo._id, p)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                  className={`min-h-[40px] rounded-full px-4 py-2 text-xs font-medium ${
                     p === deseo.prioridad ? 'bg-white/20 text-white' : 'bg-white/5 text-white/60'
                   }`}
                 >
@@ -135,6 +211,24 @@ export default function DeseoModal({
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {deseo.estado === 'pendiente' && personas.length > 0 && (
+          <div className="mt-4">
+            <p className="mb-1 text-xs text-white/60">Sorpresa para (se lo ocultamos a esa persona)</p>
+            <select
+              className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/30"
+              value={deseo.oculto_para || ''}
+              onChange={(e) => onChangeOcultoPara(deseo._id, e.target.value || null)}
+            >
+              <option value="">Nadie</option>
+              {personas.map((p) => (
+                <option key={p.nombre} value={p.nombre}>
+                  {p.nombre}
+                </option>
+              ))}
+            </select>
           </div>
         )}
 
@@ -168,6 +262,19 @@ export default function DeseoModal({
                   ))}
                 </div>
                 <p className="mt-2 text-xs text-white/50">Llevas: {formatMoney(totalPagos)}</p>
+
+                <div className="mt-2 flex items-center gap-2">
+                  <input ref={fotoCompraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFotoCompra} />
+                  <button
+                    type="button"
+                    onClick={() => fotoCompraRef.current?.click()}
+                    className="text-xs text-white/40"
+                  >
+                    📷 {fotoCompra ? 'Foto del momento lista' : 'Foto de cuando llegue (opcional)'}
+                  </button>
+                  {fotoCompra && <img src={fotoCompra} alt="" className="h-8 w-8 rounded-md object-cover" />}
+                </div>
+
                 {error && <p className="mt-1 text-xs text-sable-rojo">{error}</p>}
                 <div className="mt-3 flex gap-2">
                   <motion.button

@@ -8,8 +8,14 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       includeAssets: ['pwa/apple-touch-icon.png'],
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,ico,woff2}'],
+      },
       manifest: {
         name: 'Lista de Deseos',
         short_name: 'Deseos',
@@ -24,22 +30,6 @@ export default defineConfig({
           { src: 'pwa/icon-any-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           { src: 'pwa/icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
           { src: 'pwa/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-        ],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,ico,woff2}'],
-        navigateFallbackDenylist: [/^\/api\//],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url, sameOrigin }) => !sameOrigin && /\/api\//.test(url.pathname),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'family-wishlist-api',
-              networkTimeoutSeconds: 6,
-              cacheableResponse: { statuses: [0, 200] },
-              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 },
-            },
-          },
         ],
       },
     }),

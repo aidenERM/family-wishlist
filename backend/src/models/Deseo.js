@@ -13,6 +13,12 @@ const deseoSchema = new mongoose.Schema(
     imagenes: { type: [String], default: [] },
     comprado_en: { type: Date, default: null },
     pagos: { type: Map, of: Number, default: undefined },
+    razon: { type: String, default: '' },
+    fecha_objetivo: { type: Date, default: null },
+    oculto_para: { type: String, default: null },
+    revisado_en: { type: Date, default: Date.now },
+    foto_comprado: { type: String, default: null },
+    ultimo_estado_visual: { type: String, default: null },
   },
   { collection: 'wishlist_deseos' }
 );

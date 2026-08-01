@@ -1,4 +1,4 @@
-const { BedrockRuntimeClient, InvokeModelCommand } = require('@aws-sdk/client-bedrock-runtime');
+const { BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedrock-runtime');
 
 const client = new BedrockRuntimeClient({ region: process.env.AWS_REGION });
 
@@ -13,23 +13,15 @@ Reglas:
 - "estimado" es true si tuviste que inventar el precio o la prioridad, false si vinieron explicitos en el texto.`;
 
 async function parseDeseoFromText(texto) {
-  const body = {
-    anthropic_version: 'bedrock-2023-05-31',
-    max_tokens: 300,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: texto }],
-  };
-
-  const command = new InvokeModelCommand({
+  const command = new ConverseCommand({
     modelId: process.env.BEDROCK_MODEL_ID,
-    contentType: 'application/json',
-    accept: 'application/json',
-    body: JSON.stringify(body),
+    system: [{ text: SYSTEM_PROMPT }],
+    messages: [{ role: 'user', content: [{ text: texto }] }],
+    inferenceConfig: { maxTokens: 300 },
   });
 
   const response = await client.send(command);
-  const raw = JSON.parse(Buffer.from(response.body).toString('utf-8'));
-  const text = raw.content?.[0]?.text?.trim();
+  const text = response.output?.message?.content?.[0]?.text?.trim();
 
   if (!text) {
     throw new Error('Respuesta vacia de Bedrock');

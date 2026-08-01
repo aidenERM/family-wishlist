@@ -5,6 +5,8 @@ const connect = require('./db/mongo');
 const familiaRoutes = require('./routes/familia');
 const deseosRoutes = require('./routes/deseos');
 const configRoutes = require('./routes/config');
+const historialRoutes = require('./routes/historial');
+const consultaRoutes = require('./routes/consulta');
 
 const app = express();
 
@@ -20,6 +22,8 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 app.use('/api/familia', familiaRoutes);
 app.use('/api/deseos', deseosRoutes);
 app.use('/api/config', configRoutes);
+app.use('/api/historial', historialRoutes);
+app.use('/api/consulta', consultaRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);

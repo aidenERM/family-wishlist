@@ -8,6 +8,11 @@ const deseoSchema = new mongoose.Schema(
     estado: { type: String, enum: ['pendiente', 'comprado'], required: true, default: 'pendiente' },
     estimado: { type: Boolean, default: false },
     fecha_creado: { type: Date, default: Date.now },
+    orden: { type: Number, required: true, default: 0 },
+    descripcion: { type: String, default: '' },
+    imagenes: { type: [String], default: [] },
+    comprado_en: { type: Date, default: null },
+    pagos: { type: Map, of: Number, default: undefined },
   },
   { collection: 'wishlist_deseos' }
 );

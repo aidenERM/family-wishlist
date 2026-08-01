@@ -16,9 +16,37 @@ export interface Deseo {
   estado: Estado;
   estimado: boolean;
   fecha_creado: string;
+  orden: number;
+  descripcion?: string;
+  imagenes?: string[];
+  comprado_en?: string | null;
+  pagos?: Record<string, number>;
 }
 
 export interface Config {
   ahorro_mensual: number;
   fecha_inicio: string;
+}
+
+export interface HistorialEntry {
+  _id: string;
+  deseo_id: string | null;
+  accion: 'creado' | 'editado' | 'prioridad_cambiada' | 'reordenado' | 'comprado' | 'eliminado';
+  detalle: string;
+  fecha: string;
+}
+
+export interface ConsultaPlanItem {
+  articulo: string;
+  precio: number;
+  acumulado: number;
+  faltante: number;
+  mesesFaltantes: number | null;
+  alcanzaAhora: boolean;
+}
+
+export interface ConsultaResponse {
+  monto: number;
+  respuesta: string;
+  plan: ConsultaPlanItem[];
 }

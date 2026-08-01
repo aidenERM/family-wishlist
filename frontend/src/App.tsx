@@ -1,12 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import * as api from './api';
 import type { Config, Deseo, Persona, Prioridad } from './types';
-import { computePlan } from './lib/planning';
+import { computePlan, buildMonthlyPlan } from './lib/planning';
 import Header from './components/Header';
 import AiInput from './components/AiInput';
 import ManualAddForm from './components/ManualAddForm';
 import ConfigPanel from './components/ConfigPanel';
 import DeseoList from './components/DeseoList';
+import DeseoModal from './components/DeseoModal';
+import CalendarioTimeline from './components/CalendarioTimeline';
+import PlanMensualTable from './components/PlanMensualTable';
+import ConsultaBox from './components/ConsultaBox';
+import UndoToast from './components/UndoToast';
 
 export default function App() {
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -15,6 +21,9 @@ export default function App() {
   const [config, setConfig] = useState<Config | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [modalDeseo, setModalDeseo] = useState<Deseo | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Deseo | null>(null);
+  const deleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -42,6 +51,11 @@ export default function App() {
     [deseos, total, config]
   );
 
+  const monthlyPlan = useMemo(
+    () => buildMonthlyPlan(deseos, total, config?.ahorro_mensual ?? 0, 12),
+    [deseos, total, config]
+  );
+
   async function handleSavePersona(nombre: string, plataActual: number) {
     const updated = await api.updatePersona(nombre, plataActual);
     setPersonas((prev) => prev.map((p) => (p.nombre === nombre ? updated : p)));
@@ -58,14 +72,47 @@ export default function App() {
     setDeseos((prev) => [...prev, deseo]);
   }
 
-  async function handleMarcarComprado(id: string) {
-    const updated = await api.updateDeseo(id, { estado: 'comprado' });
-    setDeseos((prev) => prev.map((d) => (d._id === id ? updated : d)));
+  async function handleReorder(ids: string[]) {
+    const updated = await api.reordenarDeseos(ids);
+    setDeseos(updated);
   }
 
-  async function handleDelete(id: string) {
-    await api.deleteDeseo(id);
+  async function handleChangePrioridad(id: string, prioridad: Prioridad) {
+    const updated = await api.updateDeseo(id, { prioridad });
+    setDeseos((prev) => prev.map((d) => (d._id === id ? updated : d)));
+    setModalDeseo((prev) => (prev && prev._id === id ? updated : prev));
+  }
+
+  async function handleComprar(id: string, pagos: Record<string, number>) {
+    const updated = await api.comprarDeseo(id, pagos);
+    setDeseos((prev) => prev.map((d) => (d._id === id ? updated : d)));
+    setPersonas((prev) =>
+      prev.map((p) => (pagos[p.nombre] ? { ...p, plata_actual: p.plata_actual - pagos[p.nombre] } : p))
+    );
+    setTotal((prev) => prev - Object.values(pagos).reduce((s, v) => s + v, 0));
+  }
+
+  function handleDeleteRequest(id: string) {
+    const deseo = deseos.find((d) => d._id === id);
+    if (!deseo) return;
     setDeseos((prev) => prev.filter((d) => d._id !== id));
+    setPendingDelete(deseo);
+    deleteTimer.current = setTimeout(async () => {
+      setPendingDelete(null);
+      try {
+        await api.deleteDeseo(id);
+      } catch {
+        setDeseos((prev) => [...prev, deseo]);
+      }
+    }, 5000);
+  }
+
+  function handleUndoDelete() {
+    if (deleteTimer.current) clearTimeout(deleteTimer.current);
+    if (pendingDelete) {
+      setDeseos((prev) => [...prev, pendingDelete]);
+      setPendingDelete(null);
+    }
   }
 
   async function handleSaveAhorro(ahorro: number) {
@@ -95,16 +142,32 @@ export default function App() {
         )}
 
         <AiInput onSubmit={handleAddAi} />
+        <ConsultaBox />
         <ManualAddForm onSubmit={handleAddManual} />
         {config && <ConfigPanel ahorroMensual={config.ahorro_mensual} onSave={handleSaveAhorro} />}
 
-        <DeseoList
-          deseos={deseos}
-          plan={plan}
-          onMarcarComprado={handleMarcarComprado}
-          onDelete={handleDelete}
-        />
+        <CalendarioTimeline rows={monthlyPlan} />
+        <PlanMensualTable rows={monthlyPlan} />
+
+        <DeseoList deseos={deseos} plan={plan} onOpen={setModalDeseo} onReorder={handleReorder} />
       </main>
+
+      <AnimatePresence>
+        {modalDeseo && (
+          <DeseoModal
+            deseo={modalDeseo}
+            personas={personas}
+            onClose={() => setModalDeseo(null)}
+            onChangePrioridad={handleChangePrioridad}
+            onComprar={handleComprar}
+            onDelete={handleDeleteRequest}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {pendingDelete && <UndoToast articulo={pendingDelete.articulo} onUndo={handleUndoDelete} />}
+      </AnimatePresence>
     </div>
   );
 }

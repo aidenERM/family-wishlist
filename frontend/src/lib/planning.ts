@@ -1,7 +1,5 @@
 import type { Deseo, StatusColor } from '../types';
 
-const PRIORIDAD_RANK: Record<Deseo['prioridad'], number> = { alta: 0, media: 1, baja: 2 };
-
 export interface DeseoPlan {
   faltante: number;
   mesesFaltantes: number | null;
@@ -10,12 +8,7 @@ export interface DeseoPlan {
 }
 
 export function sortDeseos(deseos: Deseo[]): Deseo[] {
-  return [...deseos].sort((a, b) => {
-    if (PRIORIDAD_RANK[a.prioridad] !== PRIORIDAD_RANK[b.prioridad]) {
-      return PRIORIDAD_RANK[a.prioridad] - PRIORIDAD_RANK[b.prioridad];
-    }
-    return b.precio - a.precio;
-  });
+  return [...deseos].sort((a, b) => a.orden - b.orden);
 }
 
 export function computePlan(
@@ -50,4 +43,42 @@ export function computePlan(
   }
 
   return plan;
+}
+
+export interface MonthlyPlanRow {
+  mesIndex: number;
+  fecha: Date;
+  ahorroAcumulado: number;
+  nuevosAlcanzables: Deseo[];
+}
+
+export function buildMonthlyPlan(
+  deseos: Deseo[],
+  totalAhorrado: number,
+  ahorroMensual: number,
+  meses = 12
+): MonthlyPlanRow[] {
+  const ordered = sortDeseos(deseos.filter((d) => d.estado === 'pendiente'));
+  const rows: MonthlyPlanRow[] = [];
+  const yaCubiertos = new Set<string>();
+
+  for (let m = 0; m <= meses; m++) {
+    const ahorroAcumulado = totalAhorrado + ahorroMensual * m;
+    const fecha = new Date();
+    fecha.setMonth(fecha.getMonth() + m);
+
+    let acumuladoCosto = 0;
+    const nuevosAlcanzables: Deseo[] = [];
+    for (const deseo of ordered) {
+      acumuladoCosto += deseo.precio;
+      if (acumuladoCosto <= ahorroAcumulado && !yaCubiertos.has(deseo._id)) {
+        nuevosAlcanzables.push(deseo);
+        yaCubiertos.add(deseo._id);
+      }
+    }
+
+    rows.push({ mesIndex: m, fecha, ahorroAcumulado, nuevosAlcanzables });
+  }
+
+  return rows;
 }

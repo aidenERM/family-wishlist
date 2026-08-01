@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { Persona } from '../types';
 import { formatMoney } from '../lib/format';
+import StepButtons from './StepButtons';
 
 export default function PersonaChip({
   persona,
@@ -21,6 +22,11 @@ export default function PersonaChip({
     } else {
       setValue(String(persona.plata_actual));
     }
+  }
+
+  function step(delta: number) {
+    const next = Math.max(0, persona.plata_actual + delta);
+    onSave(persona.nombre, next);
   }
 
   return (
@@ -50,6 +56,7 @@ export default function PersonaChip({
           </button>
         )}
       </div>
+      <StepButtons onStep={step} />
     </motion.div>
   );
 }

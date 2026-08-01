@@ -1,65 +1,76 @@
-import { motion } from 'framer-motion';
+import { Reorder, useDragControls } from 'framer-motion';
 import type { Deseo } from '../types';
 import type { DeseoPlan } from '../lib/planning';
 import { formatMoney, formatDate } from '../lib/format';
 import StatusDot from './StatusDot';
 import PrioridadBadge from './PrioridadBadge';
+import { imageUrl } from '../lib/images';
 
 export default function DeseoCard({
   deseo,
   plan,
-  onMarcarComprado,
-  onDelete,
+  draggable,
+  onOpen,
 }: {
   deseo: Deseo;
   plan: DeseoPlan | undefined;
-  onMarcarComprado: (id: string) => void;
-  onDelete: (id: string) => void;
+  draggable: boolean;
+  onOpen: (deseo: Deseo) => void;
 }) {
+  const dragControls = useDragControls();
+  const thumb = deseo.imagenes?.[0];
+
   return (
-    <motion.div
+    <Reorder.Item
+      value={deseo}
+      dragListener={false}
+      dragControls={dragControls}
       layout
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="glass-card flex items-center justify-between gap-3 p-4"
+      className="glass-card flex items-center gap-3 p-4"
     >
-      <div className="flex items-center gap-3">
-        {deseo.estado === 'pendiente' && plan && <StatusDot status={plan.status} />}
+      {draggable && (
+        <span
+          onPointerDown={(e) => dragControls.start(e)}
+          className="shrink-0 cursor-grab select-none text-white/30 active:cursor-grabbing"
+          aria-label="arrastrar para reordenar"
+        >
+          ⠿
+        </span>
+      )}
+
+      <button className="flex flex-1 items-center gap-3 text-left" onClick={() => onOpen(deseo)}>
+        {thumb ? (
+          <img
+            src={imageUrl(thumb)}
+            alt={deseo.articulo}
+            className="h-12 w-12 shrink-0 rounded-xl object-cover"
+          />
+        ) : (
+          deseo.estado === 'pendiente' &&
+          plan && (
+            <span className="shrink-0">
+              <StatusDot status={plan.status} />
+            </span>
+          )
+        )}
         <div>
           <p className="font-medium">
             {deseo.articulo} {deseo.estimado && <span className="text-xs text-white/40">(estimado)</span>}
           </p>
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold text-white/80">{formatMoney(deseo.precio)}</span>
             <PrioridadBadge prioridad={deseo.prioridad} />
-            {deseo.estado === 'comprado' && (
-              <span className="text-xs text-white/40">comprado</span>
-            )}
+            {thumb && deseo.estado === 'pendiente' && plan && <StatusDot status={plan.status} size={8} />}
+            {deseo.estado === 'comprado' && <span className="text-xs text-white/40">comprado</span>}
             {deseo.estado === 'pendiente' && plan?.fechaEstimada && plan.status !== 'verde' && (
               <span className="text-xs text-white/40">~ {formatDate(plan.fechaEstimada)}</span>
             )}
           </div>
         </div>
-      </div>
-      <div className="flex shrink-0 gap-2">
-        {deseo.estado === 'pendiente' && (
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => onMarcarComprado(deseo._id)}
-            className="rounded-lg bg-sable-verde/20 px-3 py-1.5 text-xs font-medium text-green-300"
-          >
-            Comprado
-          </motion.button>
-        )}
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={() => onDelete(deseo._id)}
-          className="rounded-lg bg-white/5 px-3 py-1.5 text-xs font-medium text-white/60"
-        >
-          Eliminar
-        </motion.button>
-      </div>
-    </motion.div>
+      </button>
+    </Reorder.Item>
   );
 }

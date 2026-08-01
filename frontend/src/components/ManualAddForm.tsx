@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Prioridad } from '../types';
 import { resizeImageFile } from '../lib/photo';
 import { DuplicadoException } from '../api';
+import MoneyInput from './MoneyInput';
 
 export interface ManualAddFields {
   articulo: string;
@@ -96,12 +97,11 @@ export default function ManualAddForm({ onSubmit }: { onSubmit: (fields: ManualA
                 value={articulo}
                 onChange={(e) => setArticulo(e.target.value)}
               />
-              <input
+              <MoneyInput
                 className="w-full sm:w-32 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/30"
                 placeholder="precio"
-                inputMode="decimal"
                 value={precio}
-                onChange={(e) => setPrecio(e.target.value)}
+                onChange={setPrecio}
               />
               <select
                 className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/30"

@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import type { Persona } from '../types';
 import PersonaChip from './PersonaChip';
-import { formatMoney } from '../lib/format';
+import AnimatedMoney from './AnimatedMoney';
 
 export default function Header({
   personas,
@@ -16,7 +16,7 @@ export default function Header({
     <header className="flex flex-col gap-4">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         <p className="text-sm text-white/60">Total ahorrado en familia</p>
-        <p className="text-4xl font-bold tracking-tight">{formatMoney(total)}</p>
+        <AnimatedMoney value={total} className="text-4xl font-bold tracking-tight" />
       </motion.div>
       <div className="flex flex-wrap gap-3">
         {personas.map((p) => (

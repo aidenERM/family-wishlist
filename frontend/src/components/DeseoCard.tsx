@@ -8,6 +8,7 @@ import StatusDot from './StatusDot';
 import PrioridadBadge from './PrioridadBadge';
 import ProgressBar from './ProgressBar';
 import { imageUrl } from '../lib/images';
+import BlurImage from './BlurImage';
 
 const SWIPE_THRESHOLD = 70;
 
@@ -96,7 +97,7 @@ export default function DeseoCard({
       >
         <button className="flex flex-1 items-center gap-3 text-left" onClick={() => onOpen(deseo)}>
           {thumb ? (
-            <img
+            <BlurImage
               src={imageUrl(thumb)}
               alt={deseo.articulo}
               className="h-12 w-12 shrink-0 rounded-xl object-cover"

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { formatMoney } from '../lib/format';
 import StepButtons from './StepButtons';
+import MoneyInput from './MoneyInput';
+import AnimatedMoney from './AnimatedMoney';
 
 export default function ConfigPanel({
   ahorroMensual,
@@ -31,18 +32,17 @@ export default function ConfigPanel({
       <span className="text-sm text-white/60">Ahorro mensual planeado</span>
       <div className="flex items-center gap-2">
         {editing ? (
-          <input
+          <MoneyInput
             autoFocus
             className="w-28 bg-transparent text-right text-sm font-semibold outline-none border-b border-white/30"
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={setValue}
             onBlur={commit}
             onKeyDown={(e) => e.key === 'Enter' && commit()}
-            inputMode="decimal"
           />
         ) : (
           <button className="text-sm font-semibold" onClick={() => setEditing(true)}>
-            {formatMoney(ahorroMensual)}
+            <AnimatedMoney value={ahorroMensual} />
           </button>
         )}
         <StepButtons onStep={step} />

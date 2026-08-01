@@ -4,6 +4,8 @@ import type { Deseo, Persona, Prioridad } from '../types';
 import { formatMoney, diasHasta, mesesDesde } from '../lib/format';
 import { imageUrl } from '../lib/images';
 import { resizeImageFile } from '../lib/photo';
+import MoneyInput from './MoneyInput';
+import BlurImage from './BlurImage';
 import { celebrar } from '../lib/confetti';
 import { haptic } from '../lib/haptics';
 import PrioridadBadge from './PrioridadBadge';
@@ -126,7 +128,7 @@ export default function DeseoModal({
 
         {mainImage && (
           <div className="mt-3">
-            <img
+            <BlurImage
               src={imageUrl(mainImage)}
               alt={deseo.articulo}
               className="h-48 w-full rounded-2xl object-cover"
@@ -253,11 +255,10 @@ export default function DeseoModal({
                   {personas.map((p) => (
                     <label key={p.nombre} className="flex items-center justify-between gap-2 text-sm">
                       <span>{p.nombre}</span>
-                      <input
-                        inputMode="decimal"
+                      <MoneyInput
                         className="w-28 rounded-lg bg-white/5 border border-white/10 px-2 py-1 text-right text-sm outline-none focus:border-white/30"
                         value={pagos[p.nombre] ?? ''}
-                        onChange={(e) => setPagos((prev) => ({ ...prev, [p.nombre]: e.target.value }))}
+                        onChange={(raw) => setPagos((prev) => ({ ...prev, [p.nombre]: raw }))}
                         placeholder="0"
                       />
                     </label>

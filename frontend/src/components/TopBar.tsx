@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatMoney } from '../lib/format';
 import AiInput from './AiInput';
+import AnimatedMoney from './AnimatedMoney';
 
 export default function TopBar({
   total,
@@ -20,7 +20,7 @@ export default function TopBar({
       <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
         <div>
           <p className="text-[10px] uppercase tracking-wide text-white/40">Ahorrado</p>
-          <p className="text-lg font-bold leading-tight">{formatMoney(total)}</p>
+          <AnimatedMoney value={total} className="text-lg font-bold leading-tight" />
         </div>
         <motion.button
           whileTap={{ scale: 0.92 }}

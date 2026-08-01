@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { Persona } from '../types';
-import { formatMoney } from '../lib/format';
 import StepButtons from './StepButtons';
+import MoneyInput from './MoneyInput';
+import AnimatedMoney from './AnimatedMoney';
 
 export default function PersonaChip({
   persona,
@@ -41,18 +42,17 @@ export default function PersonaChip({
       <div className="flex flex-col">
         <span className="text-xs text-white/60">{persona.nombre}</span>
         {editing ? (
-          <input
+          <MoneyInput
             autoFocus
             className="w-24 bg-transparent text-sm font-semibold outline-none border-b border-white/30"
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={setValue}
             onBlur={commit}
             onKeyDown={(e) => e.key === 'Enter' && commit()}
-            inputMode="decimal"
           />
         ) : (
           <button className="text-left text-sm font-semibold" onClick={() => setEditing(true)}>
-            {formatMoney(persona.plata_actual)}
+            <AnimatedMoney value={persona.plata_actual} />
           </button>
         )}
       </div>

@@ -55,17 +55,8 @@ export default function DeseoCard({
     }
   }
 
-  return (
-    <Reorder.Item
-      value={deseo}
-      dragListener={false}
-      dragControls={dragControls}
-      layout
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      className="relative flex items-stretch gap-3"
-    >
+  const content = (
+    <>
       <div className="pointer-events-none absolute inset-0 flex items-center justify-between overflow-hidden rounded-[24px] px-5">
         <motion.span style={{ opacity: rightOpacity }} className="text-lg">
           👁️
@@ -139,6 +130,35 @@ export default function DeseoCard({
           </div>
         </button>
       </motion.div>
-    </Reorder.Item>
+    </>
+  );
+
+  if (draggable) {
+    return (
+      <Reorder.Item
+        value={deseo}
+        dragListener={false}
+        dragControls={dragControls}
+        layout
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative flex items-stretch gap-3"
+      >
+        {content}
+      </Reorder.Item>
+    );
+  }
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="relative flex items-stretch gap-3"
+    >
+      {content}
+    </motion.div>
   );
 }

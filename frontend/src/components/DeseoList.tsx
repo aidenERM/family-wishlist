@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Reorder, AnimatePresence, motion } from 'framer-motion';
+import { Reorder, AnimatePresence } from 'framer-motion';
 import type { Deseo, Prioridad } from '../types';
 import type { DeseoPlan } from '../lib/planning';
 import { sortDeseos } from '../lib/planning';
@@ -88,21 +88,14 @@ export default function DeseoList({
           )}
           <AnimatePresence initial={false}>
             {[...pendientesFiltrados, ...compradosFiltrados].map((d) => (
-              <motion.div
+              <DeseoCard
                 key={d._id}
-                layout
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-              >
-                <DeseoCard
-                  deseo={d}
-                  plan={plan.get(d._id)}
-                  draggable={false}
-                  onOpen={onOpen}
-                  onDelete={onDelete}
-                />
-              </motion.div>
+                deseo={d}
+                plan={plan.get(d._id)}
+                draggable={false}
+                onOpen={onOpen}
+                onDelete={onDelete}
+              />
             ))}
           </AnimatePresence>
         </div>
@@ -126,15 +119,7 @@ export default function DeseoList({
 
           <AnimatePresence initial={false}>
             {comprados.map((d) => (
-              <motion.div
-                key={d._id}
-                layout
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-              >
-                <DeseoCard deseo={d} plan={undefined} draggable={false} onOpen={onOpen} onDelete={onDelete} />
-              </motion.div>
+              <DeseoCard key={d._id} deseo={d} plan={undefined} draggable={false} onOpen={onOpen} onDelete={onDelete} />
             ))}
           </AnimatePresence>
         </>

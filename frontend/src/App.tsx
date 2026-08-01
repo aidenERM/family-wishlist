@@ -13,6 +13,7 @@ import CalendarioTimeline from './components/CalendarioTimeline';
 import PlanMensualTable from './components/PlanMensualTable';
 import ConsultaBox from './components/ConsultaBox';
 import UndoToast from './components/UndoToast';
+import InstallBanner from './components/InstallBanner';
 
 export default function App() {
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -168,6 +169,8 @@ export default function App() {
       <AnimatePresence>
         {pendingDelete && <UndoToast articulo={pendingDelete.articulo} onUndo={handleUndoDelete} />}
       </AnimatePresence>
+
+      <InstallBanner />
     </div>
   );
 }

@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import * as api from './api';
 import type { Config, Deseo, Persona, Prioridad, Snapshot } from './types';
 import { computePlan, buildMonthlyPlan } from './lib/planning';
 import { getIdentity } from './lib/identity';
 import { celebrar } from './lib/confetti';
+import { haptic } from './lib/haptics';
 import type { ManualAddFields } from './components/ManualAddForm';
 import Header from './components/Header';
-import AiInput from './components/AiInput';
 import ManualAddForm from './components/ManualAddForm';
 import ConfigPanel from './components/ConfigPanel';
 import DeseoList from './components/DeseoList';
@@ -23,6 +23,9 @@ import QueSiSlider from './components/QueSiSlider';
 import SettingsPanel from './components/SettingsPanel';
 import CompartirButton from './components/CompartirButton';
 import SkeletonCards from './components/SkeletonCards';
+import TopBar from './components/TopBar';
+import BottomNav, { type Tab } from './components/BottomNav';
+import PullToRefresh from './components/PullToRefresh';
 
 export default function App() {
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -35,32 +38,33 @@ export default function App() {
   const [modalDeseo, setModalDeseo] = useState<Deseo | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Deseo | null>(null);
   const [ahorroPreview, setAhorroPreview] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>('inicio');
   const deleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const identity = useMemo(() => getIdentity(), []);
   const prevStatuses = useRef<Map<string, string>>(new Map());
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [familia, deseosData, configData, snapshotsData] = await Promise.all([
-          api.getFamilia(),
-          api.getDeseos(),
-          api.getConfig(),
-          api.getSnapshots().catch(() => []),
-        ]);
-        setPersonas(familia.personas);
-        setTotal(familia.total);
-        setDeseos(deseosData);
-        setConfig(configData);
-        setSnapshots(snapshotsData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'No se pudo cargar la informacion');
-      } finally {
-        setLoading(false);
-      }
+  const load = useCallback(async () => {
+    try {
+      const [familia, deseosData, configData, snapshotsData] = await Promise.all([
+        api.getFamilia(),
+        api.getDeseos(),
+        api.getConfig(),
+        api.getSnapshots().catch(() => []),
+      ]);
+      setPersonas(familia.personas);
+      setTotal(familia.total);
+      setDeseos(deseosData);
+      setConfig(configData);
+      setSnapshots(snapshotsData);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo cargar la informacion');
     }
-    load();
   }, []);
+
+  useEffect(() => {
+    load().finally(() => setLoading(false));
+  }, [load]);
 
   const deseosVisibles = useMemo(
     () => deseos.filter((d) => !identity || d.oculto_para !== identity),
@@ -88,7 +92,10 @@ export default function App() {
       }
       prevStatuses.current.set(id, p.status);
     });
-    if (huboNuevoVerde) celebrar();
+    if (huboNuevoVerde) {
+      celebrar();
+      haptic([15, 40, 15]);
+    }
   }, [plan]);
 
   async function handleSavePersona(nombre: string, plataActual: number) {
@@ -187,32 +194,54 @@ export default function App() {
       <div className="orb h-96 w-96 bg-purple-500/15 animate-float-orb" style={{ top: '40%', right: '5%' }} />
       <div className="orb h-64 w-64 bg-pink-500/10 animate-float-orb" style={{ bottom: '5%', left: '30%' }} />
 
-      <main className="relative z-10 mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
-        <Header personas={personas} total={total} onSavePersona={handleSavePersona} />
+      <TopBar total={total} onAddAi={handleAddAi} />
 
-        {error && (
-          <div className="glass-card border-sable-rojo/40 p-3 text-sm text-red-300">{error}</div>
-        )}
+      <PullToRefresh onRefresh={load}>
+      <main className="relative z-10 mx-auto flex max-w-2xl flex-col gap-5 px-4 py-5 pb-24">
+        {error && <div className="glass-card border-sable-rojo/40 p-3 text-sm text-red-300">{error}</div>}
 
         <MilestoneBanner total={total} />
 
-        <AiInput onSubmit={handleAddAi} />
-        <ConsultaBox />
-        <ManualAddForm onSubmit={handleAddManual} />
-        {config && <ConfigPanel ahorroMensual={config.ahorro_mensual} onSave={handleSaveAhorro} />}
+        {activeTab === 'inicio' && (
+          <motion.div key="inicio" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-5">
+            <Header personas={personas} total={total} onSavePersona={handleSavePersona} />
+            <ConsultaBox />
+            <ManualAddForm onSubmit={handleAddManual} />
+            <ProgresoPanel deseos={deseosVisibles} snapshots={snapshots} ahorroMensual={config?.ahorro_mensual ?? 0} />
+          </motion.div>
+        )}
 
-        <ProgresoPanel deseos={deseosVisibles} snapshots={snapshots} ahorroMensual={config?.ahorro_mensual ?? 0} />
+        {activeTab === 'lista' && (
+          <motion.div key="lista" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <DeseoList
+              deseos={deseosVisibles}
+              plan={plan}
+              onOpen={setModalDeseo}
+              onReorder={handleReorder}
+              onDelete={handleDeleteRequest}
+            />
+          </motion.div>
+        )}
 
-        <QueSiSlider ahorroMensual={config?.ahorro_mensual ?? 0} onPreview={setAhorroPreview} />
+        {activeTab === 'plan' && (
+          <motion.div key="plan" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-5">
+            {config && <ConfigPanel ahorroMensual={config.ahorro_mensual} onSave={handleSaveAhorro} />}
+            <QueSiSlider ahorroMensual={config?.ahorro_mensual ?? 0} onPreview={setAhorroPreview} />
+            <CalendarioTimeline rows={monthlyPlan} />
+            <PlanMensualTable rows={monthlyPlan} />
+          </motion.div>
+        )}
 
-        <CalendarioTimeline rows={monthlyPlan} />
-        <PlanMensualTable rows={monthlyPlan} />
-
-        <DeseoList deseos={deseosVisibles} plan={plan} onOpen={setModalDeseo} onReorder={handleReorder} />
-
-        <CompartirButton total={total} pendientes={deseosVisibles.filter((d) => d.estado === 'pendiente')} />
-        <SettingsPanel personas={personas} />
+        {activeTab === 'ajustes' && (
+          <motion.div key="ajustes" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-5">
+            <CompartirButton total={total} pendientes={deseosVisibles.filter((d) => d.estado === 'pendiente')} />
+            <SettingsPanel personas={personas} />
+          </motion.div>
+        )}
       </main>
+      </PullToRefresh>
+
+      <BottomNav active={activeTab} onChange={setActiveTab} />
 
       <AnimatePresence>
         {modalDeseo && (

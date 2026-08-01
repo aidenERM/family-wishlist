@@ -5,6 +5,7 @@ import { formatMoney, diasHasta, mesesDesde } from '../lib/format';
 import { imageUrl } from '../lib/images';
 import { resizeImageFile } from '../lib/photo';
 import { celebrar } from '../lib/confetti';
+import { haptic } from '../lib/haptics';
 import PrioridadBadge from './PrioridadBadge';
 
 const PRIORIDADES: Prioridad[] = ['alta', 'media', 'baja'];
@@ -66,6 +67,7 @@ export default function DeseoModal({
       ) as Record<string, number>;
       await onComprar(deseo._id, parsed, fotoCompra || undefined);
       celebrar();
+      haptic([15, 40, 15]);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error inesperado');

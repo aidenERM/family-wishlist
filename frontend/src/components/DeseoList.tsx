@@ -3,6 +3,7 @@ import { Reorder, AnimatePresence, motion } from 'framer-motion';
 import type { Deseo } from '../types';
 import type { DeseoPlan } from '../lib/planning';
 import { sortDeseos } from '../lib/planning';
+import { haptic } from '../lib/haptics';
 import DeseoCard from './DeseoCard';
 
 export default function DeseoList({
@@ -10,11 +11,13 @@ export default function DeseoList({
   plan,
   onOpen,
   onReorder,
+  onDelete,
 }: {
   deseos: Deseo[];
   plan: Map<string, DeseoPlan>;
   onOpen: (deseo: Deseo) => void;
   onReorder: (ids: string[]) => void;
+  onDelete: (id: string) => void;
 }) {
   const comprados = deseos.filter((d) => d.estado === 'comprado');
   const [pendientes, setPendientes] = useState(() => sortDeseos(deseos.filter((d) => d.estado === 'pendiente')));
@@ -29,6 +32,7 @@ export default function DeseoList({
     if (commitTimer.current) clearTimeout(commitTimer.current);
     commitTimer.current = setTimeout(() => {
       onReorder(next.map((d) => d._id));
+      haptic(12);
     }, 500);
   }
 
@@ -39,11 +43,18 @@ export default function DeseoList({
   return (
     <div className="flex flex-col gap-3">
       {pendientes.length > 1 && (
-        <p className="text-xs text-white/40">Arrastra ⠿ para cambiar el orden de compra.</p>
+        <p className="text-xs text-white/40">Arrastra ⠿ para reordenar, o desliza una tarjeta para abrir/eliminar.</p>
       )}
       <Reorder.Group axis="y" values={pendientes} onReorder={handleReorder} className="flex flex-col gap-3">
         {pendientes.map((d) => (
-          <DeseoCard key={d._id} deseo={d} plan={plan.get(d._id)} draggable={pendientes.length > 1} onOpen={onOpen} />
+          <DeseoCard
+            key={d._id}
+            deseo={d}
+            plan={plan.get(d._id)}
+            draggable={pendientes.length > 1}
+            onOpen={onOpen}
+            onDelete={onDelete}
+          />
         ))}
       </Reorder.Group>
 
@@ -56,7 +67,7 @@ export default function DeseoList({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
           >
-            <DeseoCard deseo={d} plan={undefined} draggable={false} onOpen={onOpen} />
+            <DeseoCard deseo={d} plan={undefined} draggable={false} onOpen={onOpen} onDelete={onDelete} />
           </motion.div>
         ))}
       </AnimatePresence>
